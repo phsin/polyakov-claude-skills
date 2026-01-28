@@ -1,8 +1,6 @@
 #!/bin/bash
 # Get regional search statistics from Yandex Wordstat
 
-set -e
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
@@ -17,25 +15,23 @@ while [[ $# -gt 0 ]]; do
         --phrase|-p) PHRASE="$2"; shift 2 ;;
         --region-type|-t) REGION_TYPE="$2"; shift 2 ;;
         --devices|-d) DEVICES="$2"; shift 2 ;;
-        *) echo "Unknown option: $1"; exit 1 ;;
+        *) printf "Unknown option: %s\n" "$1"; exit 1 ;;
     esac
 done
 
 if [[ -z "$PHRASE" ]]; then
-    echo "Usage: regions_stats.sh --phrase \"search query\" [options]"
-    echo ""
-    echo "Options:"
-    echo "  --phrase, -p       Search phrase (required)"
-    echo "  --region-type, -t  Filter: cities, regions, all (default: all)"
-    echo "  --devices, -d      Device filter: all, desktop, phone, tablet (default: all)"
-    echo ""
-    echo "Examples:"
-    echo "  bash scripts/regions_stats.sh --phrase \"юрист дтп\""
-    echo "  bash scripts/regions_stats.sh --phrase \"юрист\" --region-type cities"
+    printf "Usage: regions_stats.sh --phrase \"search query\" [options]\n\n"
+    printf "Options:\n"
+    printf "  --phrase, -p       Search phrase (required)\n"
+    printf "  --region-type, -t  Filter: cities, regions, all (default: all)\n"
+    printf "  --devices, -d      Device filter: all, desktop, phone, tablet (default: all)\n\n"
+    printf "Examples:\n"
+    printf "  bash scripts/regions_stats.sh --phrase \"юрист дтп\"\n"
+    printf "  bash scripts/regions_stats.sh --phrase \"юрист\" --region-type cities\n"
     exit 1
 fi
 
-load_config
+load_config || exit 1
 
 # Escape phrase for JSON
 PHRASE_ESCAPED=$(json_escape "$PHRASE")
@@ -48,49 +44,37 @@ if [[ "$REGION_TYPE" != "all" ]]; then
 fi
 
 if [[ "$DEVICES" != "all" ]]; then
-    PARAMS="$PARAMS,\"devices\":\"$DEVICES\""
+    PARAMS="$PARAMS,\"devices\":[\"$DEVICES\"]"
 fi
 
 PARAMS="$PARAMS}"
 
-echo "=== Yandex Wordstat: Regional Statistics ==="
-echo "Phrase: $PHRASE"
-echo "Region type: $REGION_TYPE"
-echo "Devices: $DEVICES"
-echo ""
-echo "Fetching data..."
+printf "=== Yandex Wordstat: Regional Statistics ===\n"
+printf "Phrase: %s\n" "$PHRASE"
+printf "Region type: %s\n" "$REGION_TYPE"
+printf "Devices: %s\n\n" "$DEVICES"
+printf "Fetching data...\n"
 
 result=$(wordstat_request "regions" "$PARAMS")
 
 # Check for error
 if echo "$result" | grep -q '"error"'; then
-    echo "Error:"
-    echo "$result"
+    printf "Error:\n%s\n" "$result"
     exit 1
 fi
 
-echo ""
-echo "=== Top 30 Regions ==="
-echo ""
+printf "\n=== Top 30 Regions ===\n\n"
 
-echo "| Region ID | Count | Affinity |"
-echo "|-----------|-------|----------|"
+printf "| Region ID | Count |\n"
+printf "|-----------|-------|\n"
 
-# Extract regions data (top 30) - sort by count descending
+# Extract regions data - simple approach without sort (API returns in useful order)
 count=0
-echo "$result" | grep -o '"regionId":[0-9]*,"count":[0-9]*' | sort -t: -k3 -rn | head -30 | while IFS= read -r entry; do
+while IFS= read -r entry && [[ $count -lt 30 ]]; do
+    region_id=$(echo "$entry" | sed 's/.*"regionId":\([0-9]*\).*/\1/')
+    cnt=$(echo "$entry" | sed 's/.*"count":\([0-9]*\).*/\1/')
+    printf "| %s | %s |\n" "$region_id" "$(format_number "$cnt")"
     count=$((count + 1))
+done < <(echo "$result" | grep -oE '"regionId":[0-9]+,"count":[0-9]+')
 
-    region_id=$(echo "$entry" | grep -o '"regionId":[0-9]*' | sed 's/"regionId"://')
-    cnt=$(echo "$entry" | grep -o '"count":[0-9]*' | sed 's/"count"://')
-
-    echo "| $region_id | $(format_number "$cnt") |"
-done
-
-echo ""
-echo "Note: Use search_region.sh --name \"City\" to find region names"
-echo ""
-echo "=== Raw JSON (first 2000 chars) ==="
-echo "$result" | head -c 2000
-echo ""
-echo "[truncated]"
+printf "\nNote: Use search_region.sh --name \"City\" to find region names\n"

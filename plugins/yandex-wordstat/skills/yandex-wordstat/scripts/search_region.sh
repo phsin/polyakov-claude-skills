@@ -6,25 +6,22 @@ SEARCH=""
 while [[ $# -gt 0 ]]; do
     case $1 in
         --name|-n) SEARCH="$2"; shift 2 ;;
-        *) echo "Unknown option: $1"; exit 1 ;;
+        *) printf "Unknown option: %s\n" "$1"; exit 1 ;;
     esac
 done
 
 if [[ -z "$SEARCH" ]]; then
-    echo "Usage: search_region.sh --name \"city name\""
-    echo ""
-    echo "Examples:"
-    echo "  bash scripts/search_region.sh --name \"Москва\""
-    echo "  bash scripts/search_region.sh --name \"Казань\""
+    printf "Usage: search_region.sh --name \"city name\"\n\n"
+    printf "Examples:\n"
+    printf "  bash scripts/search_region.sh --name \"Москва\"\n"
+    printf "  bash scripts/search_region.sh --name \"Казань\"\n"
     exit 1
 fi
 
-echo "Searching for: $SEARCH"
-echo ""
+printf "Searching for: %s\n\n" "$SEARCH"
 
 # Hardcoded common regions
-REGIONS="
-225|Россия
+REGIONS="225|Россия
 159|Казахстан
 187|Украина
 149|Беларусь
@@ -53,22 +50,19 @@ REGIONS="
 14|Воронеж
 38|Волгоград
 37|Саратов
-195|Тюмень
-"
+195|Тюмень"
 
 # Search (case-insensitive)
 matches=$(echo "$REGIONS" | grep -i "$SEARCH" || true)
 
 if [[ -z "$matches" ]]; then
-    echo "No regions found matching \"$SEARCH\""
-    echo ""
-    echo "Try running regions_tree.sh to see all common regions"
+    printf "No regions found matching \"%s\"\n\n" "$SEARCH"
+    printf "Try running regions_tree.sh to see all common regions\n"
 else
-    echo "Found:"
-    echo ""
-    echo "| ID | Name |"
-    echo "|----|------|"
+    printf "Found:\n\n"
+    printf "| ID | Name |\n"
+    printf "|----|------|\n"
     echo "$matches" | while IFS='|' read -r id name; do
-        [[ -n "$id" ]] && echo "| $id | $name |"
+        [[ -n "$id" ]] && printf "| %s | %s |\n" "$id" "$name"
     done
 fi

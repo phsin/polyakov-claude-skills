@@ -1,40 +1,33 @@
 #!/bin/bash
 # Check Yandex Wordstat API connection
 
-set -e
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
-load_config
+load_config || exit 1
 
-echo "Checking Wordstat API connection..."
-echo ""
+printf "Checking Wordstat API connection...\n\n"
 
 # Test with a simple regions request
 response=$(wordstat_request "regions" '{"phrase":"тест"}')
 
 if echo "$response" | grep -q '"regions"'; then
-    echo "Wordstat API: OK"
-    echo ""
+    printf "✓ Wordstat API: OK\n\n"
 
     # Count regions in response
     region_count=$(echo "$response" | grep -o '"regionId"' | wc -l | tr -d ' ')
-    echo "Test query 'тест' returned data for $region_count regions"
+    printf "Test query 'тест' returned data for %s regions\n" "$region_count"
 else
-    echo "Wordstat API: Error"
-    echo "$response"
+    printf "✗ Wordstat API: Error\n"
+    printf "%s\n" "$response"
     exit 1
 fi
 
-echo ""
-echo "=== API Limits ==="
-echo "- Rate limit: 10 requests/second"
-echo "- Daily quota: 1000 requests"
-echo ""
-echo "=== Available endpoints ==="
-echo "- /v1/topRequests - top search phrases"
-echo "- /v1/dynamics   - search volume over time"
-echo "- /v1/regions    - regional distribution"
-echo ""
-echo "Token is valid and API is accessible."
+printf "\n=== API Limits ===\n"
+printf "%s\n" "- Rate limit: 10 requests/second"
+printf "%s\n" "- Daily quota: 1000 requests"
+printf "\n=== Available endpoints ===\n"
+printf "%s\n" "- /v1/topRequests - top search phrases"
+printf "%s\n" "- /v1/dynamics   - search volume over time"
+printf "%s\n" "- /v1/regions    - regional distribution"
+printf "\n✓ Token is valid and API is accessible.\n"

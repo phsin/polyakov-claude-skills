@@ -103,19 +103,64 @@ Look at search results:
 
 ## Scripts
 
+### Running on Windows (Git Bash)
+
+On Windows, use `source` command with `run.sh` wrapper:
+
+```bash
+cd skills/yandex-wordstat
+
+# Check API connection
+source scripts/run.sh quota
+
+# Get top search phrases
+source scripts/run.sh top --phrase "купить телефон" --regions 213
+
+# Get search dynamics
+source scripts/run.sh dynamics --phrase "test" --from-date 2025-01-01
+
+# Get regional statistics
+source scripts/run.sh regions --phrase "test"
+
+# Search region by name
+source scripts/run.sh search --name "Москва"
+
+# Show all region IDs
+source scripts/run.sh tree
+```
+
+### Running on macOS/Linux
+
+Standard bash execution works:
+
+```bash
+bash scripts/quota.sh
+bash scripts/top_requests.sh --phrase "юрист дтп" --regions 213
+```
+
+---
+
 ### quota.sh
 Check API connection.
 ```bash
+# macOS/Linux
 bash scripts/quota.sh
+
+# Windows (Git Bash)
+source scripts/run.sh quota
 ```
 
 ### top_requests.sh
 Get top search phrases.
 ```bash
+# macOS/Linux
 bash scripts/top_requests.sh \
   --phrase "юрист дтп" \
   --regions "213" \
   --devices "all"
+
+# Windows (Git Bash)
+source scripts/run.sh top --phrase "юрист дтп" --regions 213
 ```
 
 | Param | Required | Default | Values |
@@ -127,10 +172,14 @@ bash scripts/top_requests.sh \
 ### dynamics.sh
 Get search volume trends over time.
 ```bash
+# macOS/Linux
 bash scripts/dynamics.sh \
   --phrase "юрист дтп" \
   --period "monthly" \
   --from-date "2025-01-01"
+
+# Windows (Git Bash)
+source scripts/run.sh dynamics --phrase "юрист дтп" --from-date 2025-01-01
 ```
 
 | Param | Required | Default | Values |
@@ -145,9 +194,13 @@ bash scripts/dynamics.sh \
 ### regions_stats.sh
 Get regional distribution.
 ```bash
+# macOS/Linux
 bash scripts/regions_stats.sh \
   --phrase "юрист дтп" \
   --region-type "cities"
+
+# Windows (Git Bash)
+source scripts/run.sh regions --phrase "юрист дтп"
 ```
 
 | Param | Required | Default | Values |
@@ -159,13 +212,21 @@ bash scripts/regions_stats.sh \
 ### regions_tree.sh
 Show common region IDs.
 ```bash
+# macOS/Linux
 bash scripts/regions_tree.sh
+
+# Windows (Git Bash)
+source scripts/run.sh tree
 ```
 
 ### search_region.sh
 Find region ID by name.
 ```bash
+# macOS/Linux
 bash scripts/search_region.sh --name "Москва"
+
+# Windows (Git Bash)
+source scripts/run.sh search --name "Москва"
 ```
 
 ## Wordstat Operators
@@ -235,7 +296,7 @@ Multiple variants in one query.
 | Новосибирск | 65 |
 | Казань | 43 |
 
-Run `bash scripts/regions_tree.sh` for full list.
+Run `bash scripts/regions_tree.sh` (or `source scripts/run.sh tree` on Windows) for full list.
 
 ## Limits
 

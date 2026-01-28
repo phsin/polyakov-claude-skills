@@ -4,13 +4,25 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_FILE="$SCRIPT_DIR/../config/.env"
 CACHE_DIR="$SCRIPT_DIR/../cache"
+TMP_DIR="$SCRIPT_DIR/../cache"
 API_URL="https://api.direct.yandex.com/json/v5/"
 
-# Load config
+# Load config - properly export variables from .env
 load_config() {
     if [[ -f "$CONFIG_FILE" ]]; then
-        # shellcheck disable=SC1090
-        source "$CONFIG_FILE"
+        # Read .env and export each variable (skip comments and empty lines)
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            # Skip comments and empty lines
+            [[ "$line" =~ ^[[:space:]]*# ]] && continue
+            [[ -z "$line" ]] && continue
+            # Remove leading/trailing whitespace
+            line="${line#"${line%%[![:space:]]*}"}"
+            line="${line%"${line##*[![:space:]]}"}"
+            # Export if it looks like VAR=value
+            if [[ "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then
+                export "$line"
+            fi
+        done < "$CONFIG_FILE"
     fi
 
     if [[ -z "$YANDEX_WORDSTAT_TOKEN" ]]; then
@@ -18,6 +30,9 @@ load_config() {
         echo "Set in config/.env or environment. See config/README.md for instructions."
         exit 1
     fi
+
+    # Ensure tmp directory exists
+    mkdir -p "$TMP_DIR"
 }
 
 # Make API request
@@ -43,16 +58,28 @@ api_request() {
 # Make Wordstat API request
 # Endpoint: https://api.wordstat.yandex.net/v1/{method}
 # Methods: topRequests, dynamics, regions
+# Uses temp file to avoid encoding issues with Cyrillic on Windows
 wordstat_request() {
     local method="$1"
     local params="$2"
 
     local ws_url="https://api.wordstat.yandex.net/v1/$method"
+    local tmp_file="$TMP_DIR/ws_request_$$.json"
 
-    curl -s -X POST "$ws_url" \
+    # Write params to temp file to preserve UTF-8 encoding
+    printf '%s' "$params" > "$tmp_file"
+
+    # Make request using temp file
+    local result
+    result=$(curl -s -X POST "$ws_url" \
         -H "Authorization: Bearer $YANDEX_WORDSTAT_TOKEN" \
         -H "Content-Type: application/json; charset=utf-8" \
-        -d "$params"
+        -d "@$tmp_file")
+
+    # Cleanup temp file
+    rm -f "$tmp_file"
+
+    echo "$result"
 }
 
 # Extract JSON value using grep/sed (no jq dependency)

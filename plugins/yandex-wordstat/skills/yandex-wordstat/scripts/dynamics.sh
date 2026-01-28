@@ -1,8 +1,6 @@
 #!/bin/bash
 # Get search volume dynamics from Yandex Wordstat
 
-set -e
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
@@ -23,33 +21,32 @@ while [[ $# -gt 0 ]]; do
         --to-date|-t) TO_DATE="$2"; shift 2 ;;
         --regions|-r) REGIONS="$2"; shift 2 ;;
         --devices|-d) DEVICES="$2"; shift 2 ;;
-        *) echo "Unknown option: $1"; exit 1 ;;
+        *) printf "Unknown option: %s\n" "$1"; exit 1 ;;
     esac
 done
 
 if [[ -z "$PHRASE" ]]; then
-    echo "Usage: dynamics.sh --phrase \"search query\" [options]"
-    echo ""
-    echo "Options:"
-    echo "  --phrase, -p    Search phrase (required)"
-    echo "  --period        Grouping: daily, weekly, monthly (default: monthly)"
-    echo "  --from-date, -f Start date YYYY-MM-DD (required)"
-    echo "  --to-date, -t   End date YYYY-MM-DD (default: today)"
-    echo "  --regions, -r   Region IDs, comma-separated (optional)"
-    echo "  --devices, -d   Device filter: all, desktop, phone, tablet (default: all)"
-    echo ""
-    echo "Examples:"
-    echo "  bash scripts/dynamics.sh --phrase \"юрист дтп\" --from-date 2025-01-01"
-    echo "  bash scripts/dynamics.sh --phrase \"юрист\" --period weekly --from-date 2025-06-01"
+    printf "Usage: dynamics.sh --phrase \"search query\" [options]\n\n"
+    printf "Options:\n"
+    printf "  --phrase, -p    Search phrase (required)\n"
+    printf "  --period        Grouping: daily, weekly, monthly (default: monthly)\n"
+    printf "  --from-date, -f Start date YYYY-MM-DD (default: 1 year ago)\n"
+    printf "  --to-date, -t   End date YYYY-MM-DD (default: today)\n"
+    printf "  --regions, -r   Region IDs, comma-separated (optional)\n"
+    printf "  --devices, -d   Device filter: all, desktop, phone, tablet (default: all)\n\n"
+    printf "Examples:\n"
+    printf "  bash scripts/dynamics.sh --phrase \"юрист дтп\" --from-date 2025-01-01\n"
+    printf "  bash scripts/dynamics.sh --phrase \"юрист\" --period weekly --from-date 2025-06-01\n"
     exit 1
 fi
 
-# Set default from_date if not provided
+# Set default from_date if not provided (1 year ago)
 if [[ -z "$FROM_DATE" ]]; then
+    # Try different date commands for cross-platform compatibility
     FROM_DATE=$(date -v-1y +%Y-%m-%d 2>/dev/null || date -d "1 year ago" +%Y-%m-%d 2>/dev/null || echo "2025-01-01")
 fi
 
-load_config
+load_config || exit 1
 
 # Escape phrase for JSON
 PHRASE_ESCAPED=$(json_escape "$PHRASE")
@@ -66,47 +63,41 @@ if [[ -n "$REGIONS" ]]; then
 fi
 
 if [[ "$DEVICES" != "all" ]]; then
-    PARAMS="$PARAMS,\"devices\":\"$DEVICES\""
+    PARAMS="$PARAMS,\"devices\":[\"$DEVICES\"]"
 fi
 
 PARAMS="$PARAMS}"
 
-echo "=== Yandex Wordstat: Dynamics ==="
-echo "Phrase: $PHRASE"
-echo "Period: $PERIOD"
-echo "From: $FROM_DATE"
-[[ -n "$TO_DATE" ]] && echo "To: $TO_DATE"
-[[ -n "$REGIONS" ]] && echo "Regions: $REGIONS"
-echo "Devices: $DEVICES"
-echo ""
-echo "Fetching data..."
+printf "=== Yandex Wordstat: Dynamics ===\n"
+printf "Phrase: %s\n" "$PHRASE"
+printf "Period: %s\n" "$PERIOD"
+printf "From: %s\n" "$FROM_DATE"
+[[ -n "$TO_DATE" ]] && printf "To: %s\n" "$TO_DATE"
+[[ -n "$REGIONS" ]] && printf "Regions: %s\n" "$REGIONS"
+printf "Devices: %s\n\n" "$DEVICES"
+printf "Fetching data...\n"
 
 result=$(wordstat_request "dynamics" "$PARAMS")
 
 # Check for error
 if echo "$result" | grep -q '"error"'; then
-    echo "Error:"
-    echo "$result"
+    printf "Error:\n%s\n" "$result"
     exit 1
 fi
 
-echo ""
-echo "=== Results ==="
-echo ""
+printf "\n=== Results ===\n\n"
 
-echo "| Date | Count |"
-echo "|------|-------|"
+printf "| Date | Count | Share |\n"
+printf "|------|-------|-------|\n"
 
 # Extract dynamics data
-echo "$result" | grep -o '{"date":"[^"]*","count":[0-9]*,"share":[^}]*}' | while IFS= read -r entry; do
+echo "$result" | grep -o '{"date":"[^"]*","count":[0-9]*,"share":[0-9.]*}' | while IFS= read -r entry; do
     dt=$(echo "$entry" | grep -o '"date":"[^"]*"' | sed 's/"date":"//' | tr -d '"')
     cnt=$(echo "$entry" | grep -o '"count":[0-9]*' | sed 's/"count"://')
+    share=$(echo "$entry" | grep -o '"share":[0-9.]*' | sed 's/"share"://')
+    share_pct=$(awk "BEGIN {printf \"%.2f\", $share * 100}")
 
-    echo "| $dt | $(format_number "$cnt") |"
+    printf "| %s | %s | %s%% |\n" "$dt" "$(format_number "$cnt")" "$share_pct"
 done
 
-echo ""
-echo "=== Raw JSON ==="
-echo "$result" | head -c 2000
-echo ""
-echo "[truncated if > 2000 chars]"
+printf "\n"
